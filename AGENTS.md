@@ -366,3 +366,101 @@ _playerInput.OnAimUpdated             += (float power, float angleDeg, CurlDirec
 - Multiplayer (Network/ folder is stubs only).
 - Mobile / gamepad support (PC mouse + keyboard only by design).
 - Build pipeline / CI.
+
+---
+
+## Nice to Have: 2D Game on the Same Codebase
+
+A top-down 2D curling game could share roughly 60% of this codebase with zero
+changes. The physics math (`CollisionResolver`, `ScoringSystem`) already uses
+`Vector2` throughout. `GameManager`, all AI, all input abstractions, all
+enums/structs, and all audio/UI event handling are completely dimension-agnostic.
+
+### The one required refactor before starting
+
+`GameManager` is currently coupled to the concrete `StoneSimulator` class.
+Extract an interface first:
+
+```csharp
+// Simulation/IStoneSimulator.cs
+public interface IStoneSimulator
+{
+    event Action<Vector2, Vector2> OnStoneCollision;   // impact positions (not StoneController refs)
+    event Action                   OnAllStonesStopped;
+    void             LaunchStone(ThrowData data, int stoneIndex);
+    void             ApplySweep(SweepData data);
+    void             ResetSheet();
+    List<StoneState> GetCurrentStoneStates();
+}
+```
+
+Then change `GameManager._stoneSimulator` to reference `IStoneSimulator`
+(via a `MonoBehaviour` serialized field cast on `Awake` — Unity can't serialize
+interfaces directly). `StoneSimulator` implements it; `StoneSimulator2D` also
+implements it. This is a ~5 line change to `GameManager` and a small signature
+change to `OnStoneCollision` (from `Action<StoneController, StoneController>`
+to `Action<Vector2, Vector2>`; update `ImpactFX` and `AudioBridge` accordingly).
+
+### Recommended folder structure
+
+```
+Assets/Scripts/
+  Common/          ← asmdef: CurlingSimulator.Common
+    Core/          GameManager, all enums/structs, IStoneSimulator
+    Input/         IInputProvider, ThrowData, SweepData, PlayerInputProvider
+    Simulation/    IStoneSimulator, ScoringSystem, CollisionResolver, StoneSimConfig
+    AI/            everything in AI/ as-is
+    Network/       stubs
+    UI/            HUDController, Scoreboard, MainMenuController
+    Audio/         AudioManager, AudioBridge
+
+  Game3D/          ← asmdef: CurlingSimulator.3D  (references Common)
+    Simulation/    StoneController, StoneSimulator
+    Visuals/       SheetRenderer, StoneVisuals, AimIndicator, ImpactFX, SweepFX
+    Camera/        CameraDirector
+
+  Game2D/          ← asmdef: CurlingSimulator.2D  (references Common)
+    Simulation/    StoneController2D, StoneSimulator2D
+    Visuals/       SheetRenderer2D, StoneVisuals2D, AimIndicator2D, ImpactFX2D, SweepFX2D
+    Camera/        CameraDirector2D
+```
+
+`.asmdef` files enforce the boundary — `Game3D` and `Game2D` cannot accidentally
+import each other's types.
+
+### What gets written fresh for 2D
+
+| 3D (existing) | 2D (new) | Notes |
+|---|---|---|
+| `StoneController` | `StoneController2D` | Same math, `Rigidbody2D` or plain `transform` |
+| `StoneSimulator` | `StoneSimulator2D : IStoneSimulator` | Implements the shared interface |
+| `SheetRenderer` | `SheetRenderer2D` | Sprites or procedural 2D mesh |
+| `StoneVisuals` | `StoneVisuals2D` | `SpriteRenderer` instead of `MeshRenderer` |
+| `AimIndicator` | `AimIndicator2D` | Same math, 2D line drawing |
+| `ImpactFX` | `ImpactFX2D` | 2D particle burst |
+| `SweepFX` | `SweepFX2D` | 2D particles |
+| `CameraDirector` | `CameraDirector2D` | Orthographic cam, no Cinemachine needed |
+
+These are all visual/physics layer only. `GameManager`, all AI, all input
+contracts, `ScoringSystem`, `CollisionResolver`, `StoneSimConfig`, `AudioManager`,
+`AudioBridge`, `HUDController`, and `Scoreboard` require no changes at all.
+
+### Scenes
+
+```
+Assets/Scenes/
+  3D/MainGame.unity
+  3D/MainMenu.unity
+  2D/MainGame2D.unity
+  2D/MainMenu2D.unity    ← or reuse the 3D menu (MainMenuController is shared)
+```
+
+### Rough effort estimate
+
+| Task | Notes |
+|---|---|
+| Extract `IStoneSimulator` + update `GameManager` | Small — ~30 min |
+| Move scripts into `Common/` / `Game3D/` + create `.asmdef` files | Mechanical — ~30 min |
+| Write `StoneSimulator2D` + `StoneController2D` | The physics integration core |
+| Write 2D visual components (5 classes) | Mostly sprite/LineRenderer2D work |
+| Build 2D scene (can extend `SceneBuilder`) | Wire-up only |
