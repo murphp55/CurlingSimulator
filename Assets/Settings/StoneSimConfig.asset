@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a907a3e20e1f2c468bf35c6c31ada54, type: 3}
+  m_Name: StoneSimConfig
+  m_EditorClassIdentifier: Assembly-CSharp::CurlingSimulator.Simulation.StoneSimConfig
+  BaseDecelerationRate: 0.018
+  BaseCurlRate: 0.004
+  SweepFrictionReduction: 0.35
+  SweepCurlReduction: 0.6
+  MaxLaunchSpeed: 4.5
+  MinLaunchSpeed: 1.8
+  StoneRadius: 0.145
+  CollisionRestitution: 0.85
+  MinSpeedThreshold: 0.05
+  HogLineDistance: 21.94
+  BackLineDistance: -1.83
+  SheetHalfWidth: 2.375
+  HouseRadius: 1.829

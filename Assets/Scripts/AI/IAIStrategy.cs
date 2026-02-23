@@ -1,3 +1,4 @@
+using CurlingSimulator.Core;
 using CurlingSimulator.Input;
 
 namespace CurlingSimulator.AI
